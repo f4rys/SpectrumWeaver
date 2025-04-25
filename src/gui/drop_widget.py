@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QDragEnterEvent, QDropEvent
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 if TYPE_CHECKING:
@@ -27,3 +28,30 @@ class DropWidget(QWidget):
 
         self.setLayout(self.vlayout)
         self.setAcceptDrops(True)
+
+    def _handle_drag_event(self, event: QDragEnterEvent) -> None:
+        """Handle common drag event logic."""
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:  # noqa: N802
+        """Handle drag enter events."""
+        self._handle_drag_event(event)
+
+    def dragMoveEvent(self, event: QDragEnterEvent) -> None:  # noqa: N802
+        """Handle drag move events."""
+        self._handle_drag_event(event)
+
+    def dropEvent(self, event: QDropEvent) -> None:  # noqa: N802
+        """Handle drop events to process the dropped file."""
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+            url = event.mimeData().urls()[0]
+
+            if url.isLocalFile():
+                file_path = url.toLocalFile()
+                self.parent().show_spectrum_viewer(file_path)
+        else:
+            event.ignore()
