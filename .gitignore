@@ -170,4 +170,8 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
+# Contains UI design files for the project
 design/
+
+# Generated resources
+resources.py
