@@ -26,7 +26,9 @@ class SpectrumViewer(QWidget):
 
     def _init_analyzer(self, path: str) -> None:
         analyzer = SpectrumAnalyzer(path)
+
         spectrogram = analyzer.create_spectrogram()
         spectrogram = spectrogram.scaled(600, 300)
+
         self.spectrogram_label.setPixmap(spectrogram)
         self.spectrogram_label.setScaledContents(1)
