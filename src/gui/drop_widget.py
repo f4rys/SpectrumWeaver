@@ -17,8 +17,9 @@ class DropWidget(QWidget):
     indicating that files can be dropped here. It also accepts drag and drop
     events and handles them accordingly.
     """
-    def __init__(self, parent: "SpectrumWeaver") -> None:
-        super().__init__(parent)
+    def __init__(self, parent_window: "SpectrumWeaver") -> None:
+        super().__init__()
+        self.parent_window = parent_window
 
         self.label = QLabel("Drop file here")
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -52,6 +53,6 @@ class DropWidget(QWidget):
 
             if url.isLocalFile():
                 file_path = url.toLocalFile()
-                self.parent().show_spectrum_viewer(file_path)
+                self.parent_window.show_spectrum_viewer(file_path)
         else:
             event.ignore()
