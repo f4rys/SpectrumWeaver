@@ -175,3 +175,6 @@ design/
 
 # Generated resources
 resources.py
+
+# VS Code settings
+.vscode/
