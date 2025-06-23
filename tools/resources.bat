@@ -1,3 +1,3 @@
-cd ..\resources
-pyside6-rcc resources.qrc -o ..\src\assets\resources.py
-cd ..\tools
+cd ..\src\assets
+pyside6-rcc resources.qrc -o resources.py
+cd ..\..\tools\
