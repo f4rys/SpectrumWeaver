@@ -46,8 +46,18 @@ class SpectrumWeaver(FramelessWindow):
         self.resize(640, 480)
 
     def _set_qss(self) -> None:
-        with Path.open("src/assets/styles.qss", encoding="utf-8") as f:
-            self.setStyleSheet(f.read())
+        try:
+            stylesheet_path = Path("src/assets/styles.qss")
+            if not stylesheet_path.exists():
+                print(f"Warning: Stylesheet not found at {stylesheet_path}")
+                return
+                
+            with stylesheet_path.open(encoding="utf-8") as f:
+                self.setStyleSheet(f.read())
+        except (OSError, IOError) as e:
+            print(f"Warning: Could not load stylesheet: {e}")
+        except Exception as e:
+            print(f"Unexpected error loading stylesheet: {e}")
 
     def show_spectrum_viewer(self, path: str) -> None:
         """
@@ -59,9 +69,14 @@ class SpectrumWeaver(FramelessWindow):
         Args:
             path (str): The file path of the dropped file.
         """
-        self.spectrum_viewer = SpectrumViewer(self, path)
-        self.stacked_widget.addWidget(self.spectrum_viewer)
-        self.stacked_widget.setCurrentWidget(self.spectrum_viewer)
+        try:
+            self.spectrum_viewer = SpectrumViewer(self, path)
+            self.stacked_widget.addWidget(self.spectrum_viewer)
+            self.stacked_widget.setCurrentWidget(self.spectrum_viewer)
+        except Exception as e:
+            print(f"Error creating spectrum viewer: {e}")
+            # Could also show an error dialog here
+            raise  # Re-raise so the DropWidget can handle it
 
 
 if __name__ == "__main__":
