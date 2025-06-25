@@ -7,6 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "librosa>=0.11.0",
     "numpy>=2.2.6",
-    "pyside6>=6.9.1",
+    "pyqtgraph>=0.13.7",
+    "pyside6==6.9.0",
     "pysidesix-frameless-window>=0.7.3",
 ]
