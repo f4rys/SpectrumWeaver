@@ -65,9 +65,6 @@ class SpectrumWeaver(FramelessWindow):
         This method is called from the DropWidget when a file is dropped.
         It initializes the SpectrumViewer with the dropped file path
         and adds it to the stacked widget.
-
-        Args:
-            path (str): The file path of the dropped file.
         """
         try:
             self.spectrum_viewer = SpectrumViewer(self, path)

@@ -23,7 +23,7 @@ class DropWidget(QWidget):
         '.wav', '.mp3', '.flac', '.ogg', '.m4a', '.aac', 
         '.wma', '.au', '.aiff', '.aif'
     }
-    
+
     def __init__(self, parent_window: "SpectrumWeaver") -> None:
         super().__init__()
         self.parent_window = parent_window        
@@ -64,17 +64,14 @@ class DropWidget(QWidget):
     def _validate_dropped_file(self, file_path: str) -> tuple[bool, str]:
         """
         Validate the dropped file and return validation result.
-        
-        Returns:
-            tuple: (is_valid, error_message)
         """
         if not self._is_file_accessible(file_path):
             return False, f"File not accessible or does not exist:\n{file_path}"
-        
+
         if not self._is_supported_audio_file(file_path):
             supported_formats = ", ".join(sorted(self.SUPPORTED_FORMATS))
             return False, f"Unsupported file format.\n\nSupported formats: {supported_formats}"
-        
+
         return True, ""
 
     def _handle_drag_event(self, event: QDragEnterEvent) -> None:
@@ -88,12 +85,12 @@ class DropWidget(QWidget):
                     if self._is_supported_audio_file(file_path):
                         event.acceptProposedAction()
                         return
-            
+
             # No supported files found
             event.ignore()
         else:
             event.ignore()
-    
+
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:  # noqa: N802
         """Handle drag enter events."""
         self._handle_drag_event(event)
@@ -121,7 +118,7 @@ class DropWidget(QWidget):
                 return
 
             file_path = url.toLocalFile()
-            
+
             # Validate the dropped file
             is_valid, error_message = self._validate_dropped_file(file_path)
             if not is_valid:
