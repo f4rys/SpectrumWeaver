@@ -39,6 +39,7 @@ class SpectrumViewer(QWidget):
         # UI components
         self.plot_widget = None
         self.image_item = None
+        self.color_bar = None
 
         # Update timer for progressive display
         self.update_timer = QTimer()
@@ -69,7 +70,19 @@ class SpectrumViewer(QWidget):
         self.plot_widget.showGrid(x=True, y=True, alpha=0.3)
         self.plot_widget.setMenuEnabled(False)
         self.plot_widget.hideButtons()
-        self.image_item.setColorMap('viridis')
+
+        # Set color map
+        cmap = pg.colormap.get('viridis')
+        self.image_item.setColorMap(cmap)
+
+        # Add color bar for dB scale
+        self.color_bar = pg.ColorBarItem(
+            values=(-120, 0),
+            colorMap=cmap,
+            label='dB',
+            interactive=False
+        )
+        self.color_bar.setImageItem(self.image_item, insert_in=self.plot_widget.getPlotItem())
 
         if self.audio_path:
             self.plot_widget.setTitle(self.audio_path)
