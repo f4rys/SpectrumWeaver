@@ -24,8 +24,9 @@ class SpectrumViewer(QWidget):
     frame_received = Signal(int, np.ndarray)  # frame_index, magnitudes_db
     analysis_complete = Signal()
  
-    def __init__(self, parent: QStackedWidget, path: str) -> None:
+    def __init__(self, parent: QStackedWidget, path: str = None) -> None:
         super().__init__(parent)
+        self.setAcceptDrops(True)
         self.audio_path = path
         self.analyzer: SpectrumAnalyzer = None
         self.spectrogram_data: np.ndarray = None
@@ -44,7 +45,9 @@ class SpectrumViewer(QWidget):
         self.update_timer.timeout.connect(self._update_display)
 
         self._setup_ui()
-        self._start_analysis()
+
+        if self.audio_path:
+            self._start_analysis()
 
     def _setup_ui(self) -> None:
         """Set up the user interface."""
@@ -63,11 +66,15 @@ class SpectrumViewer(QWidget):
         # Configure the plot
         self.plot_widget.setLabel('left', 'Frequency', units='Hz')
         self.plot_widget.setLabel('bottom', 'Time', units='s')
-        self.plot_widget.setTitle(self.audio_path)
         self.plot_widget.showGrid(x=True, y=True, alpha=0.3)
         self.plot_widget.setMenuEnabled(False)
         self.plot_widget.hideButtons()
         self.image_item.setColorMap('viridis')
+
+        if self.audio_path:
+            self.plot_widget.setTitle(self.audio_path)
+        else:
+            self.plot_widget.setTitle("Drop audio file to begin")
 
     def _configure_axes(self) -> None:
         """Configure plot axes based on audio metadata."""
@@ -91,6 +98,8 @@ class SpectrumViewer(QWidget):
 
     def _start_analysis(self) -> None:
         """Start the streaming spectrum analysis."""
+        if not self.audio_path:
+            return
         try:
             # Create analyzer with optimized parameters (using Hann window)
             self.analyzer = SpectrumAnalyzer(
@@ -209,3 +218,38 @@ class SpectrumViewer(QWidget):
         # Flip vertically to match display
         qimg_flipped = qimg.mirrored(False, True)
         qimg_flipped.save(file_path)
+
+    def load_audio(self, path: str):
+        """Load a new audio file and reset the spectrogram viewer."""
+        # Stop current analysis and timer
+        if self.analyzer:
+            self.analyzer.stop()
+            self.analyzer = None
+
+        self.update_timer.stop()
+        self.spectrogram_data = None
+        self.metadata = {}
+        self.audio_path = path
+
+        # Clear plot and update title
+        self.plot_widget.setTitle(self.audio_path)
+        self.image_item.clear()
+
+        # Start new analysis
+        self._start_analysis()
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            # Accept only if at least one file is an audio file
+            for url in event.mimeData().urls():
+                if url.isLocalFile() and url.toLocalFile().lower().endswith((".wav", ".mp3", ".flac", ".ogg", ".m4a", ".aac")):
+                    event.acceptProposedAction()
+                    return
+        event.ignore()
+
+    def dropEvent(self, event):
+        for url in event.mimeData().urls():
+            if url.isLocalFile() and url.toLocalFile().lower().endswith((".wav", ".mp3", ".flac", ".ogg", ".m4a", ".aac")):
+                self.load_audio(url.toLocalFile())
+                break
+        event.accept()

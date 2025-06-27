@@ -9,7 +9,6 @@ from qframelesswindow import FramelessWindow
 
 from assets import resources  # noqa: F401
 from gui.custom_title_bar import CustomTitleBar
-from gui.drop_widget import DropWidget
 from gui.spectrum_viewer import SpectrumViewer
 
 
@@ -18,8 +17,7 @@ class SpectrumWeaver(FramelessWindow):
     Main application window for SpectrumWeaver.
     Inherits from FramelessWindow to provide a custom
     title bar and window frame. Sets up the layout and initializes
-    the drop widget for file handling. Also includes a method to
-    show the spectrum viewer when a file is dropped.
+    the spectrum viewer for file handling.
     """
     def __init__(self) -> None:
         super().__init__()
@@ -29,9 +27,9 @@ class SpectrumWeaver(FramelessWindow):
         self.hBoxLayout.setContentsMargins(20, 40, 20, 20)
 
         self.stacked_widget = QStackedWidget(self)
-        self.drop_widget = DropWidget(self)
-
-        self.stacked_widget.addWidget(self.drop_widget)
+        self.spectrum_viewer = SpectrumViewer(self)
+        self.stacked_widget.addWidget(self.spectrum_viewer)
+        self.stacked_widget.setCurrentWidget(self.spectrum_viewer)
 
         self._init_window()
         self._set_qss()
@@ -64,8 +62,7 @@ class SpectrumWeaver(FramelessWindow):
         Show the spectrum viewer when a file is dropped.
         """
         try:
-            self.spectrum_viewer = SpectrumViewer(self, path)
-            self.stacked_widget.addWidget(self.spectrum_viewer)
+            self.spectrum_viewer.load_audio(path)
             self.stacked_widget.setCurrentWidget(self.spectrum_viewer)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not load audio file:\n{str(e)}")
