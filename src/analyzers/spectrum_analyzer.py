@@ -19,8 +19,7 @@ class SpectrumAnalyzer:
     It uses a Hann window function by default for spectral analysis, which is common in audio processing.
     """
     def __init__(self, path: str, callback: Callable[[int, np.ndarray], None], 
-                 fft_size: int = 2048, hop_length: Optional[int] = None, 
-                 max_freq: Optional[float] = None):
+                 fft_size: int = 2048, hop_length: Optional[int] = None):
         """
         Initialize the streaming spectrum analyzer.
 
@@ -29,13 +28,11 @@ class SpectrumAnalyzer:
             callback: Function to call with (sample_index, fft_magnitudes) for each FFT result
             fft_size: Size of FFT window (power of 2)
             hop_length: Number of samples between successive frames
-            max_freq: Maximum frequency to display (None for Nyquist)
         """
         self.path = path
         self.callback = callback
         self.fft_size = fft_size
         self.hop_length = hop_length or fft_size // 4
-        self.max_freq = max_freq
 
         # Audio properties
         self.sample_rate: Optional[int] = None
@@ -78,12 +75,8 @@ class SpectrumAnalyzer:
             self.sample_rate = sr
             self.total_samples = int(self.duration * self.sample_rate)
 
-            # Set up frequency bins
-            self._freq_bins = np.fft.rfftfreq(self.fft_size, 1/self.sample_rate)
-            if self.max_freq:
-                # Find the index of the maximum frequency
-                max_freq_idx = np.searchsorted(self._freq_bins, self.max_freq)
-                self._freq_bins = self._freq_bins[:max_freq_idx]
+            # Use Nyquist frequency
+            self._freq_bins = np.fft.rfftfreq(self.fft_size, 1 / self.sample_rate)
 
         except Exception as e:
             raise RuntimeError(f"Failed to load audio metadata: {e}")
@@ -203,10 +196,6 @@ class SpectrumAnalyzer:
                     # Avoid log(0) by adding a small epsilon
                     power = np.maximum(power, 1e-12)
                     magnitudes_db = 10.0 * np.log10(power)
-
-                    # Limit frequency range if specified
-                    if self.max_freq and len(magnitudes_db) > len(self._freq_bins):
-                        magnitudes_db = magnitudes_db[:len(self._freq_bins)]
 
                     # Call the callback with results
                     self.callback(frame_index, magnitudes_db)

@@ -98,7 +98,6 @@ class SpectrumViewer(QWidget):
                 callback=self._on_fft_result_threaded,
                 fft_size=2048,
                 hop_length=512,
-                max_freq=22050
             )
 
             # Start analysis and get metadata
