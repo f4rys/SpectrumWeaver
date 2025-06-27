@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QApplication, QHBoxLayout, QStackedWidget
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QStackedWidget, QMessageBox
 from qframelesswindow import FramelessWindow
 
 from assets import resources  # noqa: F401
@@ -51,7 +51,7 @@ class SpectrumWeaver(FramelessWindow):
             if not stylesheet_path.exists():
                 print(f"Warning: Stylesheet not found at {stylesheet_path}")
                 return
-                
+
             with stylesheet_path.open(encoding="utf-8") as f:
                 self.setStyleSheet(f.read())
         except (OSError, IOError) as e:
@@ -62,18 +62,13 @@ class SpectrumWeaver(FramelessWindow):
     def show_spectrum_viewer(self, path: str) -> None:
         """
         Show the spectrum viewer when a file is dropped.
-        This method is called from the DropWidget when a file is dropped.
-        It initializes the SpectrumViewer with the dropped file path
-        and adds it to the stacked widget.
         """
         try:
             self.spectrum_viewer = SpectrumViewer(self, path)
             self.stacked_widget.addWidget(self.spectrum_viewer)
             self.stacked_widget.setCurrentWidget(self.spectrum_viewer)
         except Exception as e:
-            print(f"Error creating spectrum viewer: {e}")
-            # Could also show an error dialog here
-            raise  # Re-raise so the DropWidget can handle it
+            QMessageBox.critical(self, "Error", f"Could not load audio file:\n{str(e)}")
 
 
 if __name__ == "__main__":

@@ -1,93 +1,183 @@
-"""A module containing a widget for displaying a spectrogram of an audio file."""
+"""A streaming spectrum viewer widget that displays spectrograms in real-time."""
 
+import threading
+import numpy as np
 import pyqtgraph as pg
-from PySide6.QtWidgets import QHBoxLayout, QStackedWidget, QWidget
+from PySide6.QtCore import QTimer, Signal
+from PySide6.QtWidgets import QStackedWidget, QWidget, QVBoxLayout
 
 from analyzers.spectrum_analyzer import SpectrumAnalyzer
 
 
 class SpectrumViewer(QWidget):
     """
-    A widget for displaying a spectrogram of an audio file using pyqtgraph.
-    This widget displays the spectrogram with proper time and frequency axes,
-    complete with ticks and labels for better visualization.
+    A widget for displaying a streaming spectrogram of an audio file.
+    This widget uses a streaming spectrum analyzer to process audio data
+    in real-time and display the results progressively.
+    It supports thread-safe updates using Qt signals to ensure smooth UI performance.
+    The spectrogram is displayed using PyQtGraph's ImageItem for efficient rendering.
+    The widget automatically configures its axes based on the audio metadata
+    and updates the display at a maximum rate of 60 FPS.
     """
+    # Signals for thread-safe communication
+    frame_received = Signal(int, np.ndarray)  # frame_index, magnitudes_db
+    analysis_complete = Signal()
+ 
     def __init__(self, parent: QStackedWidget, path: str) -> None:
         super().__init__(parent)
-
-        # Store the path for use in configuration
         self.audio_path = path
+        self.analyzer: SpectrumAnalyzer = None
+        self.spectrogram_data: np.ndarray = None
+        self.data_lock = threading.Lock()
+        self.metadata: dict = {}
 
-        # Create the plot widget
+        # Connect signals
+        self.frame_received.connect(self._on_frame_received)
+
+        # UI components
+        self.plot_widget = None
+        self.image_item = None
+
+        # Update timer for progressive display
+        self.update_timer = QTimer()
+        self.update_timer.timeout.connect(self._update_display)
+
+        self._setup_ui()
+        self._start_analysis()
+
+    def _setup_ui(self) -> None:
+        """Set up the user interface."""
+        # Main layout
+        main_layout = QVBoxLayout(self)
+
+        # Plot widget
         self.plot_widget = pg.PlotWidget()
         self.plot_widget.setBackground('#202020')
-
-        # Set up the layout
-        self.hBoxLayout = QHBoxLayout(self)
-        self.hBoxLayout.addWidget(self.plot_widget)
-        self.setLayout(self.hBoxLayout)
 
         # Create the image item for the spectrogram
         self.image_item = pg.ImageItem()
         self.plot_widget.addItem(self.image_item)
+        main_layout.addWidget(self.plot_widget)
 
-        self._configure_plot()
-        self._init_analyzer(path)
-
-    def _configure_plot(self) -> None:
-        """Configure the plot widget with proper labels and styling."""
-        # Set axis labels
+        # Configure the plot
         self.plot_widget.setLabel('left', 'Frequency', units='Hz')
         self.plot_widget.setLabel('bottom', 'Time', units='s')
-
-        # Set audio path as the plot title
         self.plot_widget.setTitle(self.audio_path)
-
-        # Show grid
         self.plot_widget.showGrid(x=True, y=True, alpha=0.3)
-
-        # Configure the view
-        self.plot_widget.getViewBox().setAspectLocked(False)
-
-        # Disable the right-click context menu
         self.plot_widget.setMenuEnabled(False)
-
-        # Hide auto-scaling button
         self.plot_widget.hideButtons()
-
-        # Set a nice colormap for the spectrogram
         self.image_item.setColorMap('viridis')
 
-    def _init_analyzer(self, path: str) -> None:
-        """Initialize the spectrum analyzer and display the spectrogram."""
+    def _configure_axes(self) -> None:
+        """Configure plot axes based on audio metadata."""
+        if not self.metadata:
+            return
+
+        frequencies = self.metadata['frequencies']
+        duration = self.metadata['duration']
+
+        # Set the view range
+        # X-axis: Time (0 to duration)
+        # Y-axis: Frequency (0 Hz at bottom to max freq at top)
+        self.plot_widget.setXRange(0, duration)
+        self.plot_widget.setYRange(frequencies[0], frequencies[-1])
+
+        # Set limits
+        self.plot_widget.setLimits(
+            xMin=0, xMax=duration,
+            yMin=frequencies[0], yMax=frequencies[-1]
+        )
+
+    def _start_analysis(self) -> None:
+        """Start the streaming spectrum analysis."""
         try:
-            analyzer = SpectrumAnalyzer(path)
-            spec_data = analyzer.get_spectrogram_data()
+            # Create analyzer with optimized parameters (using Hann window)
+            self.analyzer = SpectrumAnalyzer(
+                path=self.audio_path,
+                callback=self._on_fft_result_threaded,
+                fft_size=2048,
+                hop_length=512,
+                max_freq=22050
+            )
 
-            # Get the spectrogram data
-            spectrogram = spec_data['data']
-            times = spec_data['times']
-            frequencies = spec_data['frequencies']
+            # Start analysis and get metadata
+            self.metadata = self.analyzer.start()
 
-            # Set the image data with proper axis order
-            self.image_item.setImage(spectrogram, autoLevels=True, axisOrder='row-major')
+            # Initialize spectrogram data array
+            num_time_frames = self.metadata['num_time_frames']
+            num_freq_bins = len(self.metadata['frequencies'])
+            self.spectrogram_data = np.full((num_freq_bins, num_time_frames), -120.0, dtype=np.float32)
 
-            # Calculate the correct rect for the image
-            # The rect defines the coordinate system: (x, y, width, height)
-            time_extent = times[-1] - times[0] if len(times) > 1 else 1.0
-            freq_extent = frequencies[-1] - frequencies[0] if len(frequencies) > 1 else 1.0
+            # Configure plot axes based on metadata
+            self._configure_axes()
 
-            # Set the rectangle to map image pixels to real coordinates
-            # For row-major: x=time, y=frequency
-            rect = [times[0], frequencies[0], time_extent, freq_extent]
-            self.image_item.setRect(*rect)
-
-            # Set the view range to show the entire spectrogram
-            self.plot_widget.setXRange(times[0], times[-1])
-            self.plot_widget.setYRange(frequencies[0], frequencies[-1])
-            self.plot_widget.setLimits(xMin=times[0], xMax=times[-1], yMin=frequencies[0], yMax=frequencies[-1])
+            # Start the display update timer (60 FPS max)
+            self.update_timer.start(16)
 
         except Exception as e:
-            print(f"Error displaying spectrogram: {e}")
-            # Display error message in the plot
-            self.plot_widget.setTitle(f'Error loading spectrogram: {str(e)}')
+            # Display error in plot title
+            self.plot_widget.setTitle(f"Error: {str(e)}")
+
+    def _on_fft_result_threaded(self, frame_index: int, magnitudes_db: np.ndarray) -> None:
+        """
+        Thread-safe callback function called by the streaming analyzer.
+        This emits Qt signals to ensure UI updates happen on the main thread.
+        """
+        if frame_index == -1:  # End of processing signal
+            QTimer.singleShot(0, self._on_analysis_complete)
+        else:
+            self.frame_received.emit(frame_index, magnitudes_db)
+
+    def _on_frame_received(self, frame_index: int, magnitudes_db: np.ndarray) -> None:
+        """
+        Main thread handler for FFT results.
+        This is called via Qt signal from the worker thread.
+        """
+        if self.spectrogram_data is None:
+            return
+
+        # Update the spectrogram data
+        if 0 <= frame_index < self.spectrogram_data.shape[1]:
+            with self.data_lock:
+                # Store magnitudes in natural FFT order (0 Hz to max freq)
+                end_idx = min(len(magnitudes_db), self.spectrogram_data.shape[0])
+                self.spectrogram_data[:end_idx, frame_index] = magnitudes_db[:end_idx]
+
+    def _update_display(self) -> None:
+        """
+        Update the display with new spectrogram data.
+        This runs on a timer to provide smooth progressive updates.
+        """
+        if self.spectrogram_data is None or not self.metadata:
+            return
+
+        # Get current spectrogram data with thread safety
+        with self.data_lock:
+            current_data = self.spectrogram_data.copy()
+
+        # Transpose and set the image item
+        self.image_item.setImage(current_data.T, autoLevels=False, levels=(-80, 0))
+
+        # Update the coordinate system
+        duration = self.metadata['duration']
+        frequencies = self.metadata['frequencies']
+        rect = [
+            0,  # x start (time=0)
+            frequencies[0],  # y start (lowest freq, bottom of display)
+            duration,  # width (time extent)
+            frequencies[-1] - frequencies[0]  # height (freq extent)
+        ]
+        self.image_item.setRect(*rect)
+
+    def _on_analysis_complete(self) -> None:
+        """Called when streaming analysis is complete."""
+        self.update_timer.stop()
+        self._update_display()
+        self.analysis_complete.emit()
+
+    def closeEvent(self, event) -> None:
+        """Clean up when the widget is closed."""
+        if self.analyzer:
+            self.analyzer.stop()
+        self.update_timer.stop()
+        super().closeEvent(event)
