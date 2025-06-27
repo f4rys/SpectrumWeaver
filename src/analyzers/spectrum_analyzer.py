@@ -119,48 +119,44 @@ class SpectrumAnalyzer:
     def _reader_worker(self) -> None:
         """
         Reader thread that loads audio data in chunks and feeds it to the FFT worker.
+        Sends batches of frames for vectorized FFT processing.
         """
         try:
-            # Buffer for overlapping windows
             chunk_size = self.hop_length * 50  # Process 50 frames at a time
-
-            # Stream audio in chunks
             stream = librosa.stream(self.path, block_length=1, frame_length=chunk_size, 
                                   hop_length=chunk_size, mono=True)
-
             buffer = np.array([])
             frame_index = 0
-
+            batch_size = 16  # Number of frames per batch
+            batch_frames = []
+            batch_indices = []
             for chunk in stream:
                 if self._stop_event.is_set():
                     break
-
-                # Flatten chunk if needed
                 if chunk.ndim > 1:
                     chunk = chunk.flatten()
-
-                # Add to buffer
                 buffer = np.concatenate([buffer, chunk])
-
-                # Process complete frames
                 while len(buffer) >= self.fft_size and not self._stop_event.is_set():
-                    # Extract frame
                     frame = buffer[:self.fft_size].copy()
-
-                    # Put frame in queue (with timeout to avoid blocking)
-                    try:
-                        self._audio_queue.put((frame_index, frame), timeout=1.0)
-                        frame_index += 1
-                    except queue.Full:
-                        # Skip this frame if queue is full (backpressure)
-                        pass
-
-                    # Advance buffer
+                    batch_frames.append(frame)
+                    batch_indices.append(frame_index)
+                    frame_index += 1
                     buffer = buffer[self.hop_length:]
-
-            # Signal end of data
+                    if len(batch_frames) >= batch_size:
+                        # Put batch in queue
+                        try:
+                            self._audio_queue.put((batch_indices.copy(), np.stack(batch_frames)), timeout=1.0)
+                        except queue.Full:
+                            pass
+                        batch_frames.clear()
+                        batch_indices.clear()
+            # Put any remaining frames
+            if batch_frames:
+                try:
+                    self._audio_queue.put((batch_indices.copy(), np.stack(batch_frames)), timeout=1.0)
+                except queue.Full:
+                    pass
             self._audio_queue.put(None)
-
         except Exception as e:
             print(f"Reader thread error: {e}")
             self._audio_queue.put(None)
@@ -168,38 +164,25 @@ class SpectrumAnalyzer:
     def _fft_worker(self) -> None:
         """
         Worker thread that performs FFT calculations and calls the callback.
+        Processes batches of frames for vectorized FFT and dB conversion.
         """
         try:
             while not self._stop_event.is_set():
                 try:
-                    # Get audio frame from queue
                     item = self._audio_queue.get(timeout=1.0)
-                    if item is None:  # End of data signal
+                    if item is None:
                         break
-
-                    frame_index, audio_frame = item
-
-                    # Apply window function
-                    windowed_frame = audio_frame * self._window_func
-
-                    # Compute FFT
-                    fft_result = np.fft.rfft(windowed_frame)
-
-                    # Convert to power spectral density
+                    frame_indices, audio_frames = item
+                    # audio_frames: shape (batch, fft_size)
+                    windowed = audio_frames * self._window_func
+                    fft_result = np.fft.rfft(windowed, axis=1)
                     power = np.abs(fft_result) ** 2
                     n2 = self.fft_size * self.fft_size
-
-                    # Normalize by FFT size squared
                     power = power / n2
-
-                    # Convert to dB using 10*log10 for power
-                    # Avoid log(0) by adding a small epsilon
                     power = np.maximum(power, 1e-12)
                     magnitudes_db = 10.0 * np.log10(power)
-
-                    # Call the callback with results
-                    self.callback(frame_index, magnitudes_db)
-
+                    for idx, frame_index in enumerate(frame_indices):
+                        self.callback(frame_index, magnitudes_db[idx])
                 except queue.Empty:
                     continue  # Timeout, check stop event and continue
 

@@ -32,6 +32,7 @@ class SpectrumViewer(QWidget):
         self.spectrogram_data: np.ndarray = None
         self.data_lock = threading.Lock()
         self.metadata: dict = {}
+        self._last_displayed_frame = 0
 
         # Connect signals
         self.frame_received.connect(self._on_frame_received)
@@ -40,10 +41,6 @@ class SpectrumViewer(QWidget):
         self.plot_widget = None
         self.image_item = None
         self.color_bar = None
-
-        # Update timer for progressive display
-        self.update_timer = QTimer()
-        self.update_timer.timeout.connect(self._update_display)
 
         self._setup_ui()
 
@@ -71,6 +68,10 @@ class SpectrumViewer(QWidget):
         self.plot_widget.setMenuEnabled(False)
         self.plot_widget.hideButtons()
 
+        # Set initial view range
+        self.plot_widget.setXRange(0, 60)
+        self.plot_widget.setYRange(0, 22050)
+        
         # Set color map
         cmap = pg.colormap.get('viridis')
         self.image_item.setColorMap(cmap)
@@ -128,16 +129,13 @@ class SpectrumViewer(QWidget):
             # Initialize spectrogram data array with noise floor value
             num_time_frames = self.metadata['num_time_frames']
             num_freq_bins = len(self.metadata['frequencies'])
-            self.spectrogram_data = np.full((num_freq_bins, num_time_frames), -140.0, dtype=np.float32)
+            self.spectrogram_data = np.full((num_time_frames, num_freq_bins), -140.0, dtype=np.float32)
+            self._last_displayed_frame = 0
 
             # Configure plot axes based on metadata
             self._configure_axes()
 
-            # Start the display update timer (60 FPS max)
-            self.update_timer.start(16)
-
         except Exception as e:
-            # Display error in plot title
             self.plot_widget.setTitle(f"Error: {str(e)}")
 
     def _on_fft_result_threaded(self, frame_index: int, magnitudes_db: np.ndarray) -> None:
@@ -157,13 +155,14 @@ class SpectrumViewer(QWidget):
         """
         if self.spectrogram_data is None:
             return
-
-        # Update the spectrogram data
-        if 0 <= frame_index < self.spectrogram_data.shape[1]:
+        if 0 <= frame_index < self.spectrogram_data.shape[0]:
+            # Only lock for the row update
             with self.data_lock:
-                # Store magnitudes in natural FFT order (0 Hz to max freq)
-                end_idx = min(len(magnitudes_db), self.spectrogram_data.shape[0])
-                self.spectrogram_data[:end_idx, frame_index] = magnitudes_db[:end_idx]
+                end_idx = min(len(magnitudes_db), self.spectrogram_data.shape[1])
+                self.spectrogram_data[frame_index, :end_idx] = magnitudes_db[:end_idx]
+                self._last_displayed_frame = max(self._last_displayed_frame, frame_index + 1)
+
+        QTimer.singleShot(0, self._update_display)
 
     def _update_display(self) -> None:
         """
@@ -173,27 +172,26 @@ class SpectrumViewer(QWidget):
         if self.spectrogram_data is None or not self.metadata:
             return
 
-        # Get current spectrogram data with thread safety
-        with self.data_lock:
-            current_data = self.spectrogram_data.copy()
-
-        # Transpose and set the image item
-        self.image_item.setImage(current_data.T, autoLevels=False, levels=(-120, 0))
-
-        # Update the coordinate system
+        # Display only the frames that have been processed so far
+        current_data = self.spectrogram_data[:self._last_displayed_frame]
+        self.image_item.setImage(current_data, levels=(-120, 0), autoRange=False)
         duration = self.metadata['duration']
         frequencies = self.metadata['frequencies']
+
+        time_extent = duration
+        if self.spectrogram_data is not None:
+            time_extent *= (self._last_displayed_frame / self.spectrogram_data.shape[0])
+
         rect = [
             0,  # x start (time=0)
             frequencies[0],  # y start (lowest freq, bottom of display)
-            duration,  # width (time extent)
+            time_extent,  # width (time extent so far)
             frequencies[-1] - frequencies[0]  # height (freq extent)
         ]
         self.image_item.setRect(*rect)
 
     def _on_analysis_complete(self) -> None:
         """Called when streaming analysis is complete."""
-        self.update_timer.stop()
         self._update_display()
         self.analysis_complete.emit()
 
@@ -201,7 +199,6 @@ class SpectrumViewer(QWidget):
         """Clean up when the widget is closed."""
         if self.analyzer:
             self.analyzer.stop()
-        self.update_timer.stop()
         super().closeEvent(event)
 
     def contextMenuEvent(self, event):
@@ -239,7 +236,6 @@ class SpectrumViewer(QWidget):
             self.analyzer.stop()
             self.analyzer = None
 
-        self.update_timer.stop()
         self.spectrogram_data = None
         self.metadata = {}
         self.audio_path = path
@@ -250,6 +246,9 @@ class SpectrumViewer(QWidget):
 
         # Start new analysis
         self._start_analysis()
+
+        # Ensure axes and limits are updated for new file
+        self._configure_axes()
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
