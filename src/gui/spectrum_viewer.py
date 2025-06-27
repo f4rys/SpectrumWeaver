@@ -4,6 +4,7 @@ import threading
 import numpy as np
 import pyqtgraph as pg
 from PySide6.QtCore import QTimer, Signal
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QStackedWidget, QWidget, QVBoxLayout
 
 from analyzers.spectrum_analyzer import SpectrumAnalyzer
@@ -175,7 +176,7 @@ class SpectrumViewer(QWidget):
         self._update_display()
         self.analysis_complete.emit()
 
-    def closeEvent(self, event) -> None:
+    def closeEvent(self, event: QCloseEvent) -> None:
         """Clean up when the widget is closed."""
         if self.analyzer:
             self.analyzer.stop()

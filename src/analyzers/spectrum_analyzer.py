@@ -109,7 +109,7 @@ class SpectrumAnalyzer:
             'num_time_frames': (self.total_samples - self.fft_size) // self.hop_length + 1
         }
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop the streaming analysis."""
         if not self.is_running:
             return
@@ -123,7 +123,7 @@ class SpectrumAnalyzer:
         if self._worker_thread and self._worker_thread.is_alive():
             self._worker_thread.join(timeout=2.0)
 
-    def _reader_worker(self):
+    def _reader_worker(self) -> None:
         """
         Reader thread that loads audio data in chunks and feeds it to the FFT worker.
         """
@@ -172,7 +172,7 @@ class SpectrumAnalyzer:
             print(f"Reader thread error: {e}")
             self._audio_queue.put(None)
 
-    def _fft_worker(self):
+    def _fft_worker(self) -> None:
         """
         Worker thread that performs FFT calculations and calls the callback.
         """
