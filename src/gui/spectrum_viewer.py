@@ -104,10 +104,10 @@ class SpectrumViewer(QWidget):
             # Start analysis and get metadata
             self.metadata = self.analyzer.start()
 
-            # Initialize spectrogram data array
+            # Initialize spectrogram data array with noise floor value
             num_time_frames = self.metadata['num_time_frames']
             num_freq_bins = len(self.metadata['frequencies'])
-            self.spectrogram_data = np.full((num_freq_bins, num_time_frames), -120.0, dtype=np.float32)
+            self.spectrogram_data = np.full((num_freq_bins, num_time_frames), -140.0, dtype=np.float32)
 
             # Configure plot axes based on metadata
             self._configure_axes()
@@ -157,7 +157,7 @@ class SpectrumViewer(QWidget):
             current_data = self.spectrogram_data.copy()
 
         # Transpose and set the image item
-        self.image_item.setImage(current_data.T, autoLevels=False, levels=(-80, 0))
+        self.image_item.setImage(current_data.T, autoLevels=False, levels=(-120, 0))
 
         # Update the coordinate system
         duration = self.metadata['duration']

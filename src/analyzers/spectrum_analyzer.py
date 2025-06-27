@@ -192,11 +192,17 @@ class SpectrumAnalyzer:
                     # Compute FFT
                     fft_result = np.fft.rfft(windowed_frame)
 
-                    # Convert to magnitude in dB
-                    magnitudes = np.abs(fft_result)
+                    # Convert to power spectral density
+                    power = np.abs(fft_result) ** 2
+                    n2 = self.fft_size * self.fft_size
+
+                    # Normalize by FFT size squared
+                    power = power / n2
+
+                    # Convert to dB using 10*log10 for power
                     # Avoid log(0) by adding a small epsilon
-                    magnitudes = np.maximum(magnitudes, 1e-10)
-                    magnitudes_db = 20 * np.log10(magnitudes)
+                    power = np.maximum(power, 1e-12)
+                    magnitudes_db = 10.0 * np.log10(power)
 
                     # Limit frequency range if specified
                     if self.max_freq and len(magnitudes_db) > len(self._freq_bins):
