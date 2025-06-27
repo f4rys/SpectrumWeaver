@@ -5,7 +5,7 @@ import numpy as np
 import pyqtgraph as pg
 from PySide6.QtCore import QTimer, Signal
 from PySide6.QtGui import QCloseEvent
-from PySide6.QtWidgets import QStackedWidget, QWidget, QVBoxLayout
+from PySide6.QtWidgets import QStackedWidget, QWidget, QVBoxLayout, QMenu, QFileDialog
 
 from analyzers.spectrum_analyzer import SpectrumAnalyzer
 
@@ -181,3 +181,31 @@ class SpectrumViewer(QWidget):
             self.analyzer.stop()
         self.update_timer.stop()
         super().closeEvent(event)
+
+    def contextMenuEvent(self, event):
+        menu = QMenu(self)
+        export_action = menu.addAction("Export spectrogram to PNG")
+        action = menu.exec(event.globalPos())
+        if action == export_action:
+            self._export_spectrogram_png()
+
+    def _export_spectrogram_png(self):
+        if self.spectrogram_data is None:
+            return
+
+        # Get name for the file
+        name = self.audio_path.split('/')[-1].split('.')[0]
+
+        # Open file dialog to choose save location
+        file_path, _ = QFileDialog.getSaveFileName(self, "Export Spectrogram", f"{name}.png", "PNG Files (*.png)")
+        if not file_path:
+            return
+
+        # Get the visible image as QImage
+        qimg = self.image_item.getPixmap().toImage()
+        if qimg is None:
+            return
+
+        # Flip vertically to match display
+        qimg_flipped = qimg.mirrored(False, True)
+        qimg_flipped.save(file_path)
