@@ -9,7 +9,7 @@ from mutagen import File as MutagenFile
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QContextMenuEvent
 from PySide6.QtWidgets import (QMenu, QWidget, QFileDialog, QTableWidget, QLabel, 
-                               QTableWidgetItem, QPushButton, QDialog, QVBoxLayout)
+                               QTableWidgetItem, QPushButton, QDialog, QVBoxLayout, QCheckBox)
 
 from .custom_title_bar import CustomTitleBar
 
@@ -34,6 +34,7 @@ class CustomContextMenu:
         self.audio_path = audio_path
         self.spectrogram_data = spectrogram_data
         self.metadata = metadata
+        self._show_grid = True  # Default state, can be loaded from config if needed
 
     def exec(self, event: QContextMenuEvent) -> None:
         menu = QMenu(self.parent)
@@ -161,16 +162,30 @@ class CustomContextMenu:
         dlg.setLayout(layout)
         dlg.exec()
 
+    def on_grid_toggled(self, checked):
+        self._show_grid = checked
+        if hasattr(self.plot_widget, 'showGrid'):
+            self.plot_widget.showGrid(x=checked, y=checked)
+
     def _show_settings_dialog(self):
         """Show a settings dialog with a custom title bar."""
         dlg = QDialog(self.parent)
         dlg.setWindowFlags(dlg.windowFlags() | Qt.FramelessWindowHint)
-        title_bar = CustomTitleBar(dlg)
 
-        # Create a layout for the settings dialog
+        # Create a layout for the dialog
         layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # Create a custom title bar
+        title_bar = CustomTitleBar(dlg)
         layout.addWidget(title_bar)
-        layout.addWidget(QLabel("Settings go here..."))
+
+        # Grid visibility checkbox
+        grid_checkbox = QCheckBox("Show grid on plot")
+        grid_checkbox.setChecked(self._show_grid)
+        grid_checkbox.toggled.connect(self.on_grid_toggled)
+        layout.addWidget(grid_checkbox)
 
         # Add a close button
         btn = QPushButton("Close")

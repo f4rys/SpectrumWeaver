@@ -119,3 +119,17 @@ QPushButton:hover {
 QPushButton:pressed {
     background-color: rgb(80, 80, 80);
 }
+
+QCheckBox {
+    color: white;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #3a8dde;
+    border: 1px solid #3a8dde;
+}
+
+QCheckBox::indicator:unchecked {
+    background-color: #222;
+    border: 1px solid #555;
+}
