@@ -8,7 +8,7 @@ import humanize
 from mutagen import File as MutagenFile
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QContextMenuEvent
-from PySide6.QtWidgets import (QMenu, QWidget, QFileDialog, QTableWidget, 
+from PySide6.QtWidgets import (QMenu, QWidget, QFileDialog, QTableWidget, QLabel, 
                                QTableWidgetItem, QPushButton, QDialog, QVBoxLayout)
 
 from .custom_title_bar import CustomTitleBar
@@ -39,21 +39,25 @@ class CustomContextMenu:
         menu = QMenu(self.parent)
         export_action = menu.addAction("Export spectrogram to PNG")
         details_action = menu.addAction("Show details")
+        settings_action = menu.addAction("Settings")
         action = menu.exec(event.globalPos())
 
         if action == export_action:
             self._export_spectrogram_png()
         elif action == details_action:
             self._show_details_dialog()
+        elif action == settings_action:
+            self._show_settings_dialog()
 
     def _export_spectrogram_png(self):
+        """Export the spectrogram as a PNG file."""
         if self.spectrogram_data is None:
             return
 
         name = os.path.basename(self.audio_path).split('.')[0] if self.audio_path else "spectrogram"
         file_path, _ = QFileDialog.getSaveFileName(
             self.parent, "Export Spectrogram", f"{name}.png", "PNG Files (*.png)")
-    
+
         if not file_path:
             return
 
@@ -66,6 +70,7 @@ class CustomContextMenu:
         qimg_flipped.save(file_path)
 
     def _show_details_dialog(self):
+        """Show a dialog with audio file details."""
         if not self.audio_path or not os.path.isfile(self.audio_path):
             return
 
@@ -147,6 +152,25 @@ class CustomContextMenu:
         table.setCornerButtonEnabled(False)
         table.setEditTriggers(QTableWidget.NoEditTriggers)
         layout.addWidget(table)
+
+        # Add a close button
+        btn = QPushButton("Close")
+        btn.clicked.connect(dlg.accept)
+        layout.addWidget(btn)
+
+        dlg.setLayout(layout)
+        dlg.exec()
+
+    def _show_settings_dialog(self):
+        """Show a settings dialog with a custom title bar."""
+        dlg = QDialog(self.parent)
+        dlg.setWindowFlags(dlg.windowFlags() | Qt.FramelessWindowHint)
+        title_bar = CustomTitleBar(dlg)
+
+        # Create a layout for the settings dialog
+        layout = QVBoxLayout()
+        layout.addWidget(title_bar)
+        layout.addWidget(QLabel("Settings go here..."))
 
         # Add a close button
         btn = QPushButton("Close")
