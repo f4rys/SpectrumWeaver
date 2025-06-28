@@ -55,3 +55,67 @@ CloseButton {
 DropWidget > QLabel{
     color: white;
 }
+
+
+QMenu {
+    background-color: rgb(32, 32, 32);
+    color: white;
+    border: 1px solid rgb(29, 29, 29);
+    padding: 4px 0;
+    font: 13px 'Segoe UI', 'Microsoft YaHei', 'Helvetica', Arial, sans-serif;
+}
+
+QMenu::item {
+    background: transparent;
+    color: white;
+    padding: 6px 24px 6px 24px;
+}
+
+QMenu::item:selected {
+    background: rgb(39, 39, 39);
+    color: white;
+}
+
+QMenu::separator {
+    height: 1px;
+    background: rgb(29, 29, 29);
+    margin: 4px 0;
+}
+
+QDialog {
+    background-color: rgb(32, 32, 32);
+    color: white;
+    border-radius: 8px;
+}
+
+QTableWidget, QTableView {
+    background-color: rgb(39, 39, 39);
+    color: white;
+    gridline-color: rgb(29, 29, 29);
+    border: 1px solid rgb(29, 29, 29);
+    selection-background-color: rgb(60, 60, 60);
+    selection-color: white;
+}
+
+QHeaderView::section {
+    background-color: rgb(32, 32, 32);
+    color: white;
+    border: 1px solid rgb(29, 29, 29);
+    padding: 4px;
+}
+
+QPushButton {
+    background-color: rgb(39, 39, 39);
+    color: white;
+    border: 1px solid rgb(29, 29, 29);
+    border-radius: 4px;
+    padding: 4px 16px;
+}
+
+QPushButton:hover {
+    background-color: rgb(60, 60, 60);
+}
+
+QPushButton:pressed {
+    background-color: rgb(80, 80, 80);
+}

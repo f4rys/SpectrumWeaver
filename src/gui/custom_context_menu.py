@@ -6,9 +6,12 @@ from typing import Optional
 import numpy as np
 import humanize
 from mutagen import File as MutagenFile
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QContextMenuEvent
-from PySide6.QtWidgets import (QMenu, QWidget, QFileDialog, QTableWidget, QTableWidgetItem, 
-                               QHeaderView, QPushButton, QDialog, QVBoxLayout)
+from PySide6.QtWidgets import (QMenu, QWidget, QFileDialog, QTableWidget, 
+                               QTableWidgetItem, QPushButton, QDialog, QVBoxLayout)
+
+from .custom_title_bar import CustomTitleBar
 
 
 class CustomContextMenu:
@@ -48,7 +51,9 @@ class CustomContextMenu:
             return
 
         name = os.path.basename(self.audio_path).split('.')[0] if self.audio_path else "spectrogram"
-        file_path, _ = QFileDialog.getSaveFileName(self.parent, "Export Spectrogram", f"{name}.png", "PNG Files (*.png)")
+        file_path, _ = QFileDialog.getSaveFileName(
+            self.parent, "Export Spectrogram", f"{name}.png", "PNG Files (*.png)")
+    
         if not file_path:
             return
 
@@ -110,26 +115,36 @@ class CustomContextMenu:
             pass
 
         if mf and hasattr(mf, 'tags') and mf.tags:
-            for tag in ("title", "artist", "album", "date", "tracknumber", "genre", "composer", "albumartist", "comment"):
+            for tag in ("title", "artist", "album", "date", "tracknumber", 
+                        "genre", "composer", "albumartist", "comment"):
                 val = mf.tags.get(tag)
                 if val:
                     details.append((tag.capitalize(), ", ".join(val) if isinstance(val, list) else str(val)))
 
         # Create and show the details dialog
         dlg = QDialog(self.parent)
-        dlg.setWindowTitle("File Details")
+
+        # Hide the original dialog title bar for a custom look
+        dlg.setWindowFlags(dlg.windowFlags() | Qt.FramelessWindowHint)
+        title_bar = CustomTitleBar(dlg)
 
         # Create a layout and table to display the details
         layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(title_bar)
         table = QTableWidget(len(details), 2)
         table.setHorizontalHeaderLabels(["Parameter", "Value"])
 
+        # Populate the table with details
         for i, (k, v) in enumerate(details):
             table.setItem(i, 0, QTableWidgetItem(str(k)))
             table.setItem(i, 1, QTableWidgetItem(str(v)))
 
-        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        # Make headers occupy full width and hide the top-left corner
+        table.horizontalHeader().setStretchLastSection(True)
         table.verticalHeader().setVisible(False)
+        table.setCornerButtonEnabled(False)
         table.setEditTriggers(QTableWidget.NoEditTriggers)
         layout.addWidget(table)
 
