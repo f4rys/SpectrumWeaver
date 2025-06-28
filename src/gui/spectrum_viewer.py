@@ -1,13 +1,16 @@
 """A streaming spectrum viewer widget that displays spectrograms in real-time."""
 
 import threading
+
 import numpy as np
 import pyqtgraph as pg
+
 from PySide6.QtCore import QTimer, Signal
 from PySide6.QtGui import QCloseEvent
-from PySide6.QtWidgets import QStackedWidget, QWidget, QVBoxLayout, QMenu, QFileDialog
+from PySide6.QtWidgets import QStackedWidget, QWidget, QVBoxLayout
 
 from analyzers.spectrum_analyzer import SpectrumAnalyzer
+from .custom_context_menu import CustomContextMenu
 
 
 class SpectrumViewer(QWidget):
@@ -41,8 +44,20 @@ class SpectrumViewer(QWidget):
         self.plot_widget = None
         self.image_item = None
         self.color_bar = None
+        self.context_menu = CustomContextMenu(
+            self,
+            plot_widget=None,  # will be set after _setup_ui
+            image_item=None,   # will be set after _setup_ui
+            audio_path=self.audio_path,
+            spectrogram_data=self.spectrogram_data,
+            metadata=self.metadata
+        )
 
         self._setup_ui()
+
+        # Set plot_widget and image_item references in context_menu
+        self.context_menu.plot_widget = self.plot_widget
+        self.context_menu.image_item = self.image_item
 
         if self.audio_path:
             self._start_analysis()
@@ -88,7 +103,19 @@ class SpectrumViewer(QWidget):
         if self.audio_path:
             self.plot_widget.setTitle(self.audio_path)
         else:
-            self.plot_widget.setTitle("Drop audio file to begin")
+            self.plot_widget.setTitle("")
+
+        # After UI is set up, update context_menu references
+        if self.context_menu:
+            self.context_menu.plot_widget = self.plot_widget
+            self.context_menu.image_item = self.image_item
+
+    def contextMenuEvent(self, event):
+        # Update context_menu data before showing
+        self.context_menu.audio_path = self.audio_path
+        self.context_menu.spectrogram_data = self.spectrogram_data
+        self.context_menu.metadata = self.metadata
+        self.context_menu.exec(event)
 
     def _configure_axes(self) -> None:
         """Configure plot axes based on audio metadata."""
@@ -200,34 +227,6 @@ class SpectrumViewer(QWidget):
         if self.analyzer:
             self.analyzer.stop()
         super().closeEvent(event)
-
-    def contextMenuEvent(self, event):
-        menu = QMenu(self)
-        export_action = menu.addAction("Export spectrogram to PNG")
-        action = menu.exec(event.globalPos())
-        if action == export_action:
-            self._export_spectrogram_png()
-
-    def _export_spectrogram_png(self):
-        if self.spectrogram_data is None:
-            return
-
-        # Get name for the file
-        name = self.audio_path.split('/')[-1].split('.')[0]
-
-        # Open file dialog to choose save location
-        file_path, _ = QFileDialog.getSaveFileName(self, "Export Spectrogram", f"{name}.png", "PNG Files (*.png)")
-        if not file_path:
-            return
-
-        # Get the visible image as QImage
-        qimg = self.image_item.getPixmap().toImage()
-        if qimg is None:
-            return
-
-        # Flip vertically to match display
-        qimg_flipped = qimg.mirrored(False, True)
-        qimg_flipped.save(file_path)
 
     def load_audio(self, path: str):
         """Load a new audio file and reset the spectrogram viewer."""
