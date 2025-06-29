@@ -3,13 +3,14 @@
 import os
 from typing import Optional
 
-import numpy as np
 import humanize
+import numpy as np
+from pyqtgraph import colormap
 from mutagen import File as MutagenFile
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QContextMenuEvent
 from PySide6.QtWidgets import (QMenu, QWidget, QFileDialog, QTableWidget, QLabel, 
-                               QTableWidgetItem, QPushButton, QDialog, QVBoxLayout, QCheckBox)
+                               QTableWidgetItem, QPushButton, QDialog, QVBoxLayout, QCheckBox, QComboBox)
 
 from .custom_title_bar import CustomTitleBar
 
@@ -24,6 +25,7 @@ class CustomContextMenu:
         parent: Optional[QWidget],
         plot_widget,
         image_item,
+        colorbar,
         audio_path: str,
         spectrogram_data: Optional[np.ndarray],
         metadata: dict
@@ -31,10 +33,12 @@ class CustomContextMenu:
         self.parent = parent
         self.plot_widget = plot_widget
         self.image_item = image_item
+        self.colorbar = colorbar
         self.audio_path = audio_path
         self.spectrogram_data = spectrogram_data
         self.metadata = metadata
         self._show_grid = True  # Default state, can be loaded from config if needed
+        self._colormap = 'viridis'  # Default colormap
 
     def exec(self, event: QContextMenuEvent) -> None:
         menu = QMenu(self.parent)
@@ -163,12 +167,25 @@ class CustomContextMenu:
         dlg.exec()
 
     def on_grid_toggled(self, checked):
+        """Toggle the visibility of the grid on the plot."""
         self._show_grid = checked
-        if hasattr(self.plot_widget, 'showGrid'):
+
+        # Prevent errors if plot_widget is not set yet
+        if self.plot_widget is not None:
             self.plot_widget.showGrid(x=checked, y=checked)
 
+    def on_colormap_changed(self, name):
+        """Change the colormap of the image item and colorbar."""
+        self._colormap = name
+        cmap = colormap.get(name)
+
+        # Only update colormap if image_item and colorbar are both set
+        if self.image_item is not None and self.colorbar is not None:
+            self.image_item.setColorMap(cmap)
+            self.colorbar.setColorMap(cmap)
+
     def _show_settings_dialog(self):
-        """Show a settings dialog with a custom title bar."""
+        """Show a settings dialog with a custom title bar and colormap selection."""
         dlg = QDialog(self.parent)
         dlg.setWindowFlags(dlg.windowFlags() | Qt.FramelessWindowHint)
 
@@ -179,17 +196,33 @@ class CustomContextMenu:
 
         # Create a custom title bar
         title_bar = CustomTitleBar(dlg)
-        layout.addWidget(title_bar)
 
         # Grid visibility checkbox
         grid_checkbox = QCheckBox("Show grid on plot")
         grid_checkbox.setChecked(self._show_grid)
         grid_checkbox.toggled.connect(self.on_grid_toggled)
-        layout.addWidget(grid_checkbox)
+
+        # Predefined list of colormaps
+        colormaps = ["viridis", "plasma", "inferno", "magma", "cividis"]
+
+        # Label for colormap selection
+        colormap_label = QLabel("Colormap:")
+
+        # Create a combo box for colormap selection
+        colormap_combo = QComboBox()
+        colormap_combo.addItems(colormaps)
+        colormap_combo.setCurrentText(self._colormap)
+        colormap_combo.currentTextChanged.connect(self.on_colormap_changed)
 
         # Add a close button
         btn = QPushButton("Close")
         btn.clicked.connect(dlg.accept)
+
+        # Add widgets to the layout
+        layout.addWidget(title_bar)
+        layout.addWidget(grid_checkbox)
+        layout.addWidget(colormap_label)
+        layout.addWidget(colormap_combo)
         layout.addWidget(btn)
 
         dlg.setLayout(layout)

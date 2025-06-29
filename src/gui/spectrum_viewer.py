@@ -48,6 +48,7 @@ class SpectrumViewer(QWidget):
             self,
             plot_widget=None,  # will be set after _setup_ui
             image_item=None,   # will be set after _setup_ui
+            colorbar=None,  # will be set after _setup_ui
             audio_path=self.audio_path,
             spectrogram_data=self.spectrogram_data,
             metadata=self.metadata
@@ -109,6 +110,7 @@ class SpectrumViewer(QWidget):
         if self.context_menu:
             self.context_menu.plot_widget = self.plot_widget
             self.context_menu.image_item = self.image_item
+            self.context_menu.colorbar = self.color_bar
 
     def contextMenuEvent(self, event):
         # Update context_menu data before showing
