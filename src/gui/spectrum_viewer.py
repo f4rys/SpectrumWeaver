@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QStackedWidget, QWidget, QVBoxLayout
 
 from analyzers.spectrum_analyzer import SpectrumAnalyzer
 from .custom_context_menu import CustomContextMenu
+from .custom_axes_items import TimeAxisItem, FreqAxisItem
 
 
 class SpectrumViewer(QWidget):
@@ -68,8 +69,14 @@ class SpectrumViewer(QWidget):
         # Main layout
         main_layout = QVBoxLayout(self)
 
-        # Plot widget
-        self.plot_widget = pg.PlotWidget()
+        # Custom axis items for the plot
+        axis_items = {
+            'bottom': TimeAxisItem(orientation='bottom'),
+            'left': FreqAxisItem(orientation='left')
+        }
+
+        # Plot widget with custom axes
+        self.plot_widget = pg.PlotWidget(axisItems=axis_items)
         self.plot_widget.setBackground('#202020')
 
         # Create the image item for the spectrogram
