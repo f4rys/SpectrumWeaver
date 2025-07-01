@@ -13,3 +13,11 @@ dependencies = [
     "pyside6==6.9.0",
     "pysidesix-frameless-window>=0.7.3",
 ]
+
+[dependency-groups]
+dev = [
+    "auto-py-to-exe>=2.46.0",
+    "pyinstaller>=6.14.1",
+    "pytest>=8.4.1",
+    "pytest-qt>=4.4.0",
+]
