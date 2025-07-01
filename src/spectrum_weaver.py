@@ -3,6 +3,7 @@
 import sys
 from pathlib import Path
 
+from PySide6.QtCore import QFile, QTextStream
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QStackedWidget, QMessageBox
 from qframelesswindow import FramelessWindow
@@ -45,17 +46,57 @@ class SpectrumWeaver(FramelessWindow):
 
     def _set_qss(self) -> None:
         try:
-            stylesheet_path = Path("src/assets/styles.qss")
-            if not stylesheet_path.exists():
-                print(f"Warning: Stylesheet not found at {stylesheet_path}")
+            # First try to load from Qt resources (works in both dev and packaged)
+            qss_file = QFile(":/styles/styles.qss")
+            if qss_file.open(QFile.ReadOnly | QFile.Text):
+                stream = QTextStream(qss_file)
+                stylesheet_content = stream.readAll()
+                qss_file.close()
+                self.setStyleSheet(stylesheet_content)
+                print("Loaded stylesheet from Qt resources")
                 return
-
-            with stylesheet_path.open(encoding="utf-8") as f:
-                self.setStyleSheet(f.read())
-        except (OSError, IOError) as e:
-            print(f"Warning: Could not load stylesheet: {e}")
+            
+            # Fallback to file system paths
+            stylesheet_paths = [
+                Path("assets/styles.qss"),  # Packaged environment
+                Path("src/assets/styles.qss"),  # Development environment
+                Path(__file__).parent / "assets" / "styles.qss",  # Relative to this file
+            ]
+            
+            stylesheet_content = None
+            for stylesheet_path in stylesheet_paths:
+                if stylesheet_path.exists():
+                    with stylesheet_path.open(encoding="utf-8") as f:
+                        stylesheet_content = f.read()
+                    print(f"Loaded stylesheet from file: {stylesheet_path}")
+                    break
+            
+            if stylesheet_content:
+                self.setStyleSheet(stylesheet_content)
+            else:
+                print("Warning: No stylesheet found, using default styling")
+                # Apply basic dark theme as fallback
+                self.setStyleSheet("""
+                    QWidget {
+                        background-color: rgb(32, 32, 32);
+                        color: white;
+                    }
+                    SpectrumWeaver {
+                        background-color: rgb(32, 32, 32);
+                    }
+                """)
         except Exception as e:
-            print(f"Unexpected error loading stylesheet: {e}")
+            print(f"Error loading stylesheet: {e}")
+            # Apply basic dark theme as fallback
+            self.setStyleSheet("""
+                QWidget {
+                    background-color: rgb(32, 32, 32);
+                    color: white;
+                }
+                SpectrumWeaver {
+                    background-color: rgb(32, 32, 32);
+                }
+            """)
 
     def show_spectrum_viewer(self, path: str) -> None:
         """
