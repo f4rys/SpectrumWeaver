@@ -1,7 +1,7 @@
 """A module containing CustomContextMenu class for spectrum viewer actions."""
 
 import os
-from typing import Optional
+from typing import Optional, Callable
 
 import humanize
 import numpy as np
@@ -28,7 +28,8 @@ class CustomContextMenu:
         colorbar,
         audio_path: str,
         spectrogram_data: Optional[np.ndarray],
-        metadata: dict
+        metadata: dict,
+        settings_changed_callback: Optional[Callable] = None
     ):
         self.parent = parent
         self.plot_widget = plot_widget
@@ -37,8 +38,10 @@ class CustomContextMenu:
         self.audio_path = audio_path
         self.spectrogram_data = spectrogram_data
         self.metadata = metadata
+        self.settings_changed_callback = settings_changed_callback
         self._show_grid = True  # Default state, can be loaded from config if needed
         self._colormap = 'viridis'  # Default colormap
+        self._batch_size = 16  # Default batch size
 
     def exec(self, event: QContextMenuEvent) -> None:
         menu = QMenu(self.parent)
@@ -187,6 +190,17 @@ class CustomContextMenu:
             self.image_item.setColorMap(cmap)
             self.colorbar.setColorMap(cmap)
 
+    def on_batch_size_changed(self, batch_size):
+        """Change the batch size for spectrum analyzer processing."""
+        self._batch_size = batch_size
+        # Notify parent that settings changed (requires restart of analysis)
+        if self.settings_changed_callback:
+            self.settings_changed_callback('batch_size', batch_size)
+
+    def get_batch_size(self):
+        """Get the current batch size setting."""
+        return self._batch_size
+
     def _show_settings_dialog(self):
         """Show a settings dialog with a custom title bar and colormap selection."""
         dlg = QWidget(self.parent, Qt.Window | Qt.FramelessWindowHint)
@@ -214,6 +228,9 @@ class CustomContextMenu:
         # Predefined list of colormaps
         colormaps = ["viridis", "plasma", "inferno", "magma", "cividis"]
 
+        # Predefined list of batch sizes
+        batch_sizes = [4, 8, 16, 32, 64, 128]
+
         # Label for colormap selection
         colormap_label = QLabel("Colormap:")
 
@@ -223,10 +240,21 @@ class CustomContextMenu:
         colormap_combo.setCurrentText(self._colormap)
         colormap_combo.currentTextChanged.connect(self.on_colormap_changed)
 
+        # Label for batch size selection
+        batch_size_label = QLabel("Batch Size:")
+
+        # Combo box for batch size selection
+        batch_size_combo = QComboBox()
+        batch_size_combo.addItems([str(size) for size in batch_sizes])
+        batch_size_combo.setCurrentText(str(self._batch_size))
+        batch_size_combo.currentTextChanged.connect(lambda text: self.on_batch_size_changed(int(text)))
+
         # Add widgets to content layout
         content_layout.addWidget(grid_checkbox)
         content_layout.addWidget(colormap_label)
         content_layout.addWidget(colormap_combo)
+        content_layout.addWidget(batch_size_label)
+        content_layout.addWidget(batch_size_combo)
         content_widget.setLayout(content_layout)
 
         # Add content widget to main layout

@@ -52,7 +52,8 @@ class SpectrumViewer(QWidget):
             colorbar=None,  # will be set after _setup_ui
             audio_path=self.audio_path,
             spectrogram_data=self.spectrogram_data,
-            metadata=self.metadata
+            metadata=self.metadata,
+            settings_changed_callback=self._on_settings_changed
         )
 
         self._setup_ui()
@@ -151,12 +152,16 @@ class SpectrumViewer(QWidget):
         if not self.audio_path:
             return
         try:
+            # Get batch size from context menu settings
+            batch_size = self.context_menu.get_batch_size() if self.context_menu else 16
+            
             # Create analyzer with optimized parameters (using Hann window)
             self.analyzer = SpectrumAnalyzer(
                 path=self.audio_path,
                 callback=self._on_fft_result_threaded,
                 fft_size=2048,
                 hop_length=512,
+                batch_size=batch_size
             )
 
             # Start analysis and get metadata
@@ -273,3 +278,23 @@ class SpectrumViewer(QWidget):
                 self.load_audio(url.toLocalFile())
                 break
         event.accept()
+
+    def _on_settings_changed(self, setting_name: str, value) -> None:
+        """Handle settings changes from the context menu."""
+        if setting_name == 'batch_size':
+            # Restart analysis with new batch size if currently running
+            if self.analyzer and self.analyzer.is_running:
+                self._restart_analysis()
+
+    def _restart_analysis(self) -> None:
+        """Restart the spectrum analysis with current settings."""
+        if self.analyzer:
+            self.analyzer.stop()
+            self.analyzer = None
+        
+        # Clear existing data
+        self.spectrogram_data = None
+        self._last_displayed_frame = 0
+        
+        # Start new analysis
+        self._start_analysis()

@@ -19,7 +19,7 @@ class SpectrumAnalyzer:
     It uses a Hann window function by default for spectral analysis, which is common in audio processing.
     """
     def __init__(self, path: str, callback: Callable[[int, np.ndarray], None], 
-                 fft_size: int = 2048, hop_length: Optional[int] = None):
+                 fft_size: int = 2048, hop_length: Optional[int] = None, batch_size: int = 16):
         """
         Initialize the streaming spectrum analyzer.
 
@@ -28,11 +28,13 @@ class SpectrumAnalyzer:
             callback: Function to call with (sample_index, fft_magnitudes) for each FFT result
             fft_size: Size of FFT window (power of 2)
             hop_length: Number of samples between successive frames
+            batch_size: Number of frames to process in each batch (affects memory usage and performance)
         """
         self.path = path
         self.callback = callback
         self.fft_size = fft_size
         self.hop_length = hop_length or fft_size // 4
+        self.batch_size = batch_size
 
         # Audio properties
         self.sample_rate: Optional[int] = None
@@ -127,7 +129,6 @@ class SpectrumAnalyzer:
                                   hop_length=chunk_size, mono=True)
             buffer = np.array([])
             frame_index = 0
-            batch_size = 16  # Number of frames per batch
             batch_frames = []
             batch_indices = []
             for chunk in stream:
@@ -142,7 +143,7 @@ class SpectrumAnalyzer:
                     batch_indices.append(frame_index)
                     frame_index += 1
                     buffer = buffer[self.hop_length:]
-                    if len(batch_frames) >= batch_size:
+                    if len(batch_frames) >= self.batch_size:
                         # Put batch in queue
                         try:
                             self._audio_queue.put((batch_indices.copy(), np.stack(batch_frames)), timeout=1.0)
