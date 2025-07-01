@@ -10,7 +10,7 @@ from mutagen import File as MutagenFile
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QContextMenuEvent
 from PySide6.QtWidgets import (QMenu, QWidget, QFileDialog, QTableWidget, QLabel, 
-                               QTableWidgetItem, QPushButton, QDialog, QVBoxLayout, QCheckBox, QComboBox)
+                               QComboBox, QTableWidgetItem, QVBoxLayout, QCheckBox)
 
 from .custom_title_bar import CustomTitleBar
 
@@ -132,17 +132,23 @@ class CustomContextMenu:
                     details.append((tag.capitalize(), ", ".join(val) if isinstance(val, list) else str(val)))
 
         # Create and show the details dialog
-        dlg = QDialog(self.parent)
+        dlg = QWidget(self.parent, Qt.Window | Qt.FramelessWindowHint)
 
         # Hide the original dialog title bar for a custom look
-        dlg.setWindowFlags(dlg.windowFlags() | Qt.FramelessWindowHint)
-        title_bar = CustomTitleBar(dlg)
+        title_bar = CustomTitleBar(dlg, show_min_max=False)
 
-        # Create a layout and table to display the details
+        # Main layout, no margins so title bar is flush
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(title_bar)
+
+        # Content widget with margins for the table
+        content_widget = QWidget(dlg)
+        content_layout = QVBoxLayout()
+        content_layout.setContentsMargins(10, 0, 10, 10)
+        content_layout.setSpacing(10)
+
         table = QTableWidget(len(details), 2)
         table.setHorizontalHeaderLabels(["Parameter", "Value"])
 
@@ -156,15 +162,12 @@ class CustomContextMenu:
         table.verticalHeader().setVisible(False)
         table.setCornerButtonEnabled(False)
         table.setEditTriggers(QTableWidget.NoEditTriggers)
-        layout.addWidget(table)
+        content_layout.addWidget(table)
+        content_widget.setLayout(content_layout)
 
-        # Add a close button
-        btn = QPushButton("Close")
-        btn.clicked.connect(dlg.accept)
-        layout.addWidget(btn)
-
+        layout.addWidget(content_widget)
         dlg.setLayout(layout)
-        dlg.exec()
+        dlg.show()
 
     def on_grid_toggled(self, checked):
         """Toggle the visibility of the grid on the plot."""
@@ -186,16 +189,22 @@ class CustomContextMenu:
 
     def _show_settings_dialog(self):
         """Show a settings dialog with a custom title bar and colormap selection."""
-        dlg = QDialog(self.parent)
-        dlg.setWindowFlags(dlg.windowFlags() | Qt.FramelessWindowHint)
+        dlg = QWidget(self.parent, Qt.Window | Qt.FramelessWindowHint)
 
-        # Create a layout for the dialog
+        # Main layout
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Create a custom title bar
-        title_bar = CustomTitleBar(dlg)
+        # Custom title bar
+        title_bar = CustomTitleBar(dlg, show_min_max=False)
+        layout.addWidget(title_bar)
+
+        # Content widget with its own layout and margins
+        content_widget = QWidget(dlg)
+        content_layout = QVBoxLayout()
+        content_layout.setContentsMargins(10, 0, 10, 10)
+        content_layout.setSpacing(10)
 
         # Grid visibility checkbox
         grid_checkbox = QCheckBox("Show grid on plot")
@@ -208,22 +217,20 @@ class CustomContextMenu:
         # Label for colormap selection
         colormap_label = QLabel("Colormap:")
 
-        # Create a combo box for colormap selection
+        # Combo box for colormap selection
         colormap_combo = QComboBox()
         colormap_combo.addItems(colormaps)
         colormap_combo.setCurrentText(self._colormap)
         colormap_combo.currentTextChanged.connect(self.on_colormap_changed)
 
-        # Add a close button
-        btn = QPushButton("Close")
-        btn.clicked.connect(dlg.accept)
+        # Add widgets to content layout
+        content_layout.addWidget(grid_checkbox)
+        content_layout.addWidget(colormap_label)
+        content_layout.addWidget(colormap_combo)
+        content_widget.setLayout(content_layout)
 
-        # Add widgets to the layout
-        layout.addWidget(title_bar)
-        layout.addWidget(grid_checkbox)
-        layout.addWidget(colormap_label)
-        layout.addWidget(colormap_combo)
-        layout.addWidget(btn)
+        # Add content widget to main layout
+        layout.addWidget(content_widget)
 
         dlg.setLayout(layout)
-        dlg.exec()
+        dlg.show()

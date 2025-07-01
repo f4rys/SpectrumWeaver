@@ -17,9 +17,9 @@ class CustomTitleBar(TitleBar):
     This class inherits from TitleBar and customizes the title bar
     by removing the default buttons and adding a custom icon and title label.
     It also sets up a layout for the title bar and handles the
-    window icon and title changes.
+    window icon and title changes. minBtn and maxBtn can be optionally disabled.
     """
-    def __init__(self, parent: "SpectrumWeaver") -> None:
+    def __init__(self, parent: "SpectrumWeaver", show_min_max: bool = True) -> None:
         super().__init__(parent)
 
         self.setFixedHeight(48)
@@ -31,8 +31,9 @@ class CustomTitleBar(TitleBar):
 
         # Add window icon
         self.iconLabel = QLabel(self)
-        self.iconLabel.setFixedSize(20, 20)
-        self.hBoxLayout.insertSpacing(0, 20)
+        self.iconLabel.setFixedSize(32, 32)
+        self.iconLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.hBoxLayout.insertSpacing(0, 12)
         self.hBoxLayout.insertWidget(
             1, self.iconLabel, 0,
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
@@ -52,8 +53,12 @@ class CustomTitleBar(TitleBar):
         self.buttonLayout.setSpacing(0)
         self.buttonLayout.setContentsMargins(0, 0, 0, 0)
         self.buttonLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.buttonLayout.addWidget(self.minBtn)
-        self.buttonLayout.addWidget(self.maxBtn)
+        if show_min_max:
+            self.buttonLayout.addWidget(self.minBtn)
+            self.buttonLayout.addWidget(self.maxBtn)
+        else:
+            self.minBtn.hide()
+            self.maxBtn.hide()
         self.buttonLayout.addWidget(self.closeBtn)
 
         self.vBoxLayout.addLayout(self.buttonLayout)
@@ -66,5 +71,5 @@ class CustomTitleBar(TitleBar):
         self.titleLabel.adjustSize()
 
     def _set_icon(self, icon: QIcon) -> None:
-        pixmap = icon.pixmap(QSize(20,20))
-        self.iconLabel.setPixmap(pixmap)
+        pixmap = icon.pixmap(QSize(28, 28))  # Slightly smaller than label for padding
+        self.iconLabel.setPixmap(pixmap.scaled(28, 28, Qt.KeepAspectRatio, Qt.SmoothTransformation))
