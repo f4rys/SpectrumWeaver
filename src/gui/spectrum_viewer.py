@@ -110,7 +110,8 @@ class SpectrumViewer(QWidget):
         self.color_bar.setImageItem(self.image_item, insert_in=self.plot_widget.getPlotItem())
 
         if self.audio_path:
-            self.plot_widget.setTitle(self.audio_path)
+            #self.plot_widget.setTitle(self.audio_path)
+            self.plot_widget.setTitle("C:\\Users\\User\\SpectrumWeaver.mp3")
         else:
             self.plot_widget.setTitle("")
 
@@ -254,7 +255,8 @@ class SpectrumViewer(QWidget):
         self.audio_path = path
 
         # Clear plot and update title
-        self.plot_widget.setTitle(self.audio_path)
+        #self.plot_widget.setTitle(self.audio_path)
+        self.plot_widget.setTitle("C:\\Users\\User\\SpectrumWeaver.mp3")
         self.image_item.clear()
 
         # Start new analysis
